@@ -1,0 +1,23 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library" 
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Telemetry {
+  id           String   @id @default(uuid())
+  incubatorId  String
+  currentDay   Int
+  waterTemp    Float
+  chamberHumid Float
+  gasFlowPct   Int
+  batteryV     Float?   
+  status       String
+  alertCode    Int?
+  createdAt    DateTime @default(now())
+
+  @@index([incubatorId, createdAt(sort: Desc)])
+}

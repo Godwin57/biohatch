@@ -1,26 +1,89 @@
-import { NextResponse } from 'next/server';
+export const dynamic = "force-dynamic";
 
+import { NextResponse } from "next/server";
+
+const DEVICE_ID = "BH_UNIZIK_001";
+const EXPECTED_API_KEY = "your_secure_uuid_here";
+
+// ==========================================
+// 1. GET: FETCH REAL DATA FOR THE DASHBOARD
+// ==========================================
 export async function GET() {
-  const mockTelemetry = {
-    currentDay: 14, 
-    
-    // Fluctuates between 37.3°C and 37.7°C
-    waterTemp: 37.5 + (Math.random() * 0.4 - 0.2), 
-    
-    // Fluctuates between 53% and 55%
-    chamberHumid: 53 + Math.floor(Math.random() * 3), 
-    gasFlowPct: 45, 
-    status: "TURNING_PHASE"
-  };
+  // LAZY LOAD PRISMA HERE: Bypasses the Next.js build compiler
+  const { prisma } = await import("@/lib/prisma");
 
-  //fake 500ms network delay to simulate real-world latency
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  try {
+    const latestData = await prisma.telemetry.findFirst({
+      where: { incubatorId: DEVICE_ID },
+      orderBy: { createdAt: "desc" },
+    });
 
-  return NextResponse.json(mockTelemetry, { status: 200 });
+    if (!latestData) {
+      return NextResponse.json(
+        {
+          currentDay: 1,
+          waterTemp: 0,
+          chamberHumid: 0,
+          gasFlowPct: 0,
+          status: "WAITING_FOR_HARDWARE",
+        },
+        { status: 200 },
+      );
+    }
+
+    return NextResponse.json(latestData, { status: 200 });
+  } catch (error) {
+    console.error("Database Fetch Error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch telemetry" },
+      { status: 500 },
+    );
+  }
 }
 
+// ==========================================
+// 2. POST: CATCH REAL DATA FROM THE ESP32
+// ==========================================
 export async function POST(req: Request) {
-  // This empty POST route catches the hardware's data later.
-  // For now, it just returns a 201 Created so the hardware doesn't crash during early testing.
-  return NextResponse.json({ success: true, message: "Mock data received" }, { status: 201 });
+  // LAZY LOAD PRISMA HERE
+  const { prisma } = await import("@/lib/prisma");
+
+  try {
+    const apiKey = req.headers.get("x-api-key");
+    if (apiKey !== EXPECTED_API_KEY) {
+      return NextResponse.json(
+        { error: "Unauthorized: Invalid API Key" },
+        { status: 401 },
+      );
+    }
+
+    const body = await req.json();
+
+    if (body.device_id !== DEVICE_ID) {
+      return NextResponse.json(
+        { error: "Unauthorized: Unknown Device" },
+        { status: 403 },
+      );
+    }
+
+    await prisma.telemetry.create({
+      data: {
+        incubatorId: body.device_id,
+        currentDay: body.current_day,
+        waterTemp: body.water_temp,
+        chamberHumid: body.chamber_humid,
+        gasFlowPct: body.gas_flow_pct,
+        batteryV: body.battery_v,
+        status: body.status,
+      },
+    });
+
+    return NextResponse.json(
+      { success: true, message: "Data synced" },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error("Hardware Ingestion Error:", error);
+    return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
+  }
 }
