@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 
 const DEVICE_ID = "BH_UNIZIK_001";
-const EXPECTED_API_KEY = "your_secure_uuid_here";
+const EXPECTED_API_KEY = process.env.API_KEY;
 
 // ==========================================
 // 1. GET: FETCH REAL DATA FOR THE DASHBOARD
