@@ -15,14 +15,14 @@ const createPrismaClient = () => {
   const url = process.env.DATABASE_URL;
 
   if (!url) {
-    console.error(
-      "🛑 VERCEL ENV ERROR: DATABASE_URL is missing at initialization.",
+    throw new Error(
+      "DATABASE_URL is missing. Check Vercel Environment Variables.",
     );
-    return new PrismaClient();
   }
 
   const pool = new Pool({ connectionString: url });
   const adapter = new PrismaNeon(pool as any);
+
   return new PrismaClient({ adapter });
 };
 
