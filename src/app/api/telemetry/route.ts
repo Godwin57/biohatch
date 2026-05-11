@@ -77,15 +77,14 @@ export async function POST(req: Request) {
     const sql = neon(dbUrl);
 
     const newId = crypto.randomUUID();
-    const now = new Date().toISOString();
 
     await sql`
       INSERT INTO "Telemetry" (
         "id", "incubatorId", "currentDay", "waterTemp", "chamberHumid", 
-        "gasFlowPct", "batteryV", "status", "updatedAt"
+        "gasFlowPct", "batteryV", "status"
       ) VALUES (
         ${newId}, ${body.device_id}, ${body.current_day}, ${body.water_temp}, 
-        ${body.chamber_humid}, ${body.gas_flow_pct}, ${body.battery_v}, ${body.status}, ${now}
+        ${body.chamber_humid}, ${body.gas_flow_pct}, ${body.battery_v}, ${body.status}
       )
     `;
 
