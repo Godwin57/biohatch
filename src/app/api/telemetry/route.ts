@@ -54,7 +54,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const apiKey = req.headers.get("x-api-key");
+    // const apiKey = req.headers.get("x-api-key");
     // if (apiKey !== EXPECTED_API_KEY) {
     //   return NextResponse.json(
     //     { error: "Unauthorized: Invalid API Key" },
@@ -74,17 +74,18 @@ export async function POST(req: Request) {
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) throw new Error("Environment string missing");
 
-    // Initialize Neon's stateless HTTP driver
     const sql = neon(dbUrl);
 
-    // Direct SQL insertion
+    const newId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
     await sql`
       INSERT INTO "Telemetry" (
-        "incubatorId", "currentDay", "waterTemp", "chamberHumid", 
-        "gasFlowPct", "batteryV", "status"
+        "id", "incubatorId", "currentDay", "waterTemp", "chamberHumid", 
+        "gasFlowPct", "batteryV", "status", "updatedAt"
       ) VALUES (
-        ${body.device_id}, ${body.current_day}, ${body.water_temp}, 
-        ${body.chamber_humid}, ${body.gas_flow_pct}, ${body.battery_v}, ${body.status}
+        ${newId}, ${body.device_id}, ${body.current_day}, ${body.water_temp}, 
+        ${body.chamber_humid}, ${body.gas_flow_pct}, ${body.battery_v}, ${body.status}, ${now}
       )
     `;
 
