@@ -5,11 +5,7 @@ import { NextResponse } from "next/server";
 const DEVICE_ID = "BH_UNIZIK_001";
 const EXPECTED_API_KEY = process.env.API_KEY;
 
-// ==========================================
-// 1. GET: FETCH REAL DATA FOR THE DASHBOARD
-// ==========================================
 export async function GET() {
-  // LAZY LOAD PRISMA HERE: Bypasses the Next.js build compiler
   const { prisma } = await import("@/lib/prisma");
 
   try {
@@ -41,11 +37,7 @@ export async function GET() {
   }
 }
 
-// ==========================================
-// 2. POST: CATCH REAL DATA FROM THE ESP32
-// ==========================================
 export async function POST(req: Request) {
-  // LAZY LOAD PRISMA HERE
   const { prisma } = await import("@/lib/prisma");
 
   try {
