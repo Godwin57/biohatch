@@ -11,18 +11,10 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const getPrisma = () => {
+export const getPrisma = (connectionString: string) => {
   if (globalForPrisma.prisma) return globalForPrisma.prisma;
 
-  const url = process.env.DATABASE_URL;
-
-  if (!url) {
-    throw new Error(
-      "CRITICAL VERCEL ERROR: DATABASE_URL is missing during live request.",
-    );
-  }
-
-  const pool = new Pool({ connectionString: url });
+  const pool = new Pool({ connectionString });
   const adapter = new PrismaNeon(pool as any);
 
   globalForPrisma.prisma = new PrismaClient({ adapter });

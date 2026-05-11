@@ -7,11 +7,14 @@ const EXPECTED_API_KEY = process.env.API_KEY;
 
 export async function GET() {
   try {
-    // 1. Import the lazy-load function
+    // 1. Grab the URL natively inside the dynamic route
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) throw new Error("Environment string missing in dynamic route.");
+
     const { getPrisma } = await import("@/lib/prisma");
 
-    // 2. Execute it strictly inside the live request
-    const prisma = getPrisma();
+    // 2. Inject it directly into Prisma
+    const prisma = getPrisma(dbUrl);
 
     const latestData = await prisma.telemetry.findFirst({
       where: { incubatorId: DEVICE_ID },
@@ -34,7 +37,6 @@ export async function GET() {
     return NextResponse.json(latestData, { status: 200 });
   } catch (error) {
     console.error("Database Fetch Error:", error);
-
     return NextResponse.json(
       {
         currentDay: 0,
@@ -51,11 +53,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    // 1. Import the lazy-load function inside the try block for absolute safety
+    // 1. Grab the URL
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) throw new Error("Environment string missing in dynamic route.");
+
     const { getPrisma } = await import("@/lib/prisma");
 
-    // 2. Execute it securely
-    const prisma = getPrisma();
+    // 2. Inject it
+    const prisma = getPrisma(dbUrl);
 
     const apiKey = req.headers.get("x-api-key");
     if (apiKey !== EXPECTED_API_KEY) {
