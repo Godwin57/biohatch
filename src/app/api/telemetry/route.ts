@@ -7,7 +7,11 @@ const EXPECTED_API_KEY = process.env.API_KEY;
 
 export async function GET() {
   try {
-    const { prisma } = await import("@/lib/prisma");
+    // 1. Import the lazy-load function
+    const { getPrisma } = await import("@/lib/prisma");
+
+    // 2. Execute it strictly inside the live request
+    const prisma = getPrisma();
 
     const latestData = await prisma.telemetry.findFirst({
       where: { incubatorId: DEVICE_ID },
@@ -46,9 +50,13 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { prisma } = await import("@/lib/prisma");
-
   try {
+    // 1. Import the lazy-load function inside the try block for absolute safety
+    const { getPrisma } = await import("@/lib/prisma");
+
+    // 2. Execute it securely
+    const prisma = getPrisma();
+
     const apiKey = req.headers.get("x-api-key");
     if (apiKey !== EXPECTED_API_KEY) {
       return NextResponse.json(
