@@ -7,16 +7,25 @@ if (typeof window === "undefined") {
   neonConfig.webSocketConstructor = ws;
 }
 
-const connectionString = process.env.DATABASE_URL!;
-
-const pool = new Pool({ connectionString });
-
-const adapter = new PrismaNeon(pool as any);
-
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+const createPrismaClient = () => {
+  const url = process.env.DATABASE_URL;
+
+  if (!url) {
+    console.error(
+      "🛑 VERCEL ENV ERROR: DATABASE_URL is missing at initialization.",
+    );
+    return new PrismaClient();
+  }
+
+  const pool = new Pool({ connectionString: url });
+  const adapter = new PrismaNeon(pool as any);
+  return new PrismaClient({ adapter });
+};
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
