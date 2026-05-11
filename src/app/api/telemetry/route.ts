@@ -55,21 +55,21 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const apiKey = req.headers.get("x-api-key");
-    if (apiKey !== EXPECTED_API_KEY) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid API Key" },
-        { status: 401 },
-      );
-    }
+    // if (apiKey !== EXPECTED_API_KEY) {
+    //   return NextResponse.json(
+    //     { error: "Unauthorized: Invalid API Key" },
+    //     { status: 401 },
+    //   );
+    // }
 
     const body = await req.json();
 
-    if (body.device_id !== DEVICE_ID) {
-      return NextResponse.json(
-        { error: "Unauthorized: Unknown Device" },
-        { status: 403 },
-      );
-    }
+    // if (body.device_id !== DEVICE_ID) {
+    //   return NextResponse.json(
+    //     { error: "Unauthorized: Unknown Device" },
+    //     { status: 403 },
+    //   );
+    // }
 
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) throw new Error("Environment string missing");
