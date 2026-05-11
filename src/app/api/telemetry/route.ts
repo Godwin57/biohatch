@@ -1,27 +1,28 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
 
 const DEVICE_ID = "BH_UNIZIK_001";
 const EXPECTED_API_KEY = process.env.API_KEY;
 
 export async function GET() {
   try {
-    // 1. Grab the URL natively inside the dynamic route
     const dbUrl = process.env.DATABASE_URL;
-    if (!dbUrl) throw new Error("Environment string missing in dynamic route.");
+    if (!dbUrl) throw new Error("Environment string missing");
 
-    const { getPrisma } = await import("@/lib/prisma");
+    // Initialize Neon's stateless HTTP driver
+    const sql = neon(dbUrl);
 
-    // 2. Inject it directly into Prisma
-    const prisma = getPrisma(dbUrl);
+    // Fetch the latest row directly
+    const data = await sql`
+      SELECT * FROM "Telemetry"
+      WHERE "incubatorId" = ${DEVICE_ID}
+      ORDER BY "createdAt" DESC
+      LIMIT 1
+    `;
 
-    const latestData = await prisma.telemetry.findFirst({
-      where: { incubatorId: DEVICE_ID },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (!latestData) {
+    if (data.length === 0) {
       return NextResponse.json(
         {
           currentDay: 0,
@@ -34,7 +35,7 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(latestData, { status: 200 });
+    return NextResponse.json(data[0], { status: 200 });
   } catch (error) {
     console.error("Database Fetch Error:", error);
     return NextResponse.json(
@@ -53,15 +54,6 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    // 1. Grab the URL
-    const dbUrl = process.env.DATABASE_URL;
-    if (!dbUrl) throw new Error("Environment string missing in dynamic route.");
-
-    const { getPrisma } = await import("@/lib/prisma");
-
-    // 2. Inject it
-    const prisma = getPrisma(dbUrl);
-
     const apiKey = req.headers.get("x-api-key");
     if (apiKey !== EXPECTED_API_KEY) {
       return NextResponse.json(
@@ -79,17 +71,22 @@ export async function POST(req: Request) {
       );
     }
 
-    await prisma.telemetry.create({
-      data: {
-        incubatorId: body.device_id,
-        currentDay: body.current_day,
-        waterTemp: body.water_temp,
-        chamberHumid: body.chamber_humid,
-        gasFlowPct: body.gas_flow_pct,
-        batteryV: body.battery_v,
-        status: body.status,
-      },
-    });
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) throw new Error("Environment string missing");
+
+    // Initialize Neon's stateless HTTP driver
+    const sql = neon(dbUrl);
+
+    // Direct SQL insertion
+    await sql`
+      INSERT INTO "Telemetry" (
+        "incubatorId", "currentDay", "waterTemp", "chamberHumid", 
+        "gasFlowPct", "batteryV", "status"
+      ) VALUES (
+        ${body.device_id}, ${body.current_day}, ${body.water_temp}, 
+        ${body.chamber_humid}, ${body.gas_flow_pct}, ${body.battery_v}, ${body.status}
+      )
+    `;
 
     return NextResponse.json(
       { success: true, message: "Data synced" },
