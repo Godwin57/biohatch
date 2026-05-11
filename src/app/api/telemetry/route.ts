@@ -6,9 +6,9 @@ const DEVICE_ID = "BH_UNIZIK_001";
 const EXPECTED_API_KEY = process.env.API_KEY;
 
 export async function GET() {
-  const { prisma } = await import("@/lib/prisma");
-
   try {
+    const { prisma } = await import("@/lib/prisma");
+
     const latestData = await prisma.telemetry.findFirst({
       where: { incubatorId: DEVICE_ID },
       orderBy: { createdAt: "desc" },
@@ -17,7 +17,7 @@ export async function GET() {
     if (!latestData) {
       return NextResponse.json(
         {
-          currentDay: 1,
+          currentDay: 0,
           waterTemp: 0,
           chamberHumid: 0,
           gasFlowPct: 0,
@@ -30,9 +30,17 @@ export async function GET() {
     return NextResponse.json(latestData, { status: 200 });
   } catch (error) {
     console.error("Database Fetch Error:", error);
+
     return NextResponse.json(
-      { error: "Failed to fetch telemetry" },
-      { status: 500 },
+      {
+        currentDay: 0,
+        waterTemp: 0,
+        chamberHumid: 0,
+        gasFlowPct: 0,
+        batteryV: 0,
+        status: "SYSTEM_OFFLINE_DB_ERROR",
+      },
+      { status: 200 },
     );
   }
 }
