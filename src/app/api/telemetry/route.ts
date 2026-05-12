@@ -2,9 +2,34 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import twilio from "twilio";
 
 const DEVICE_ID = "BH_UNIZIK_001";
 const EXPECTED_API_KEY = process.env.API_KEY;
+
+// Initialize Twilio Client
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN,
+);
+
+// Helper function to send SMS safely without crashing the API
+async function sendFarmerSMS(message: string) {
+  try {
+    if (!process.env.FARMER_PHONE_NUMBER || !process.env.TWILIO_PHONE_NUMBER) {
+      console.warn("Twilio ENV variables missing. Skipping SMS.");
+      return;
+    }
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: process.env.FARMER_PHONE_NUMBER,
+    });
+    console.log(`SMS Sent successfully: "${message}"`);
+  } catch (error) {
+    console.error("Twilio SMS Failed:", error);
+  }
+}
 
 export async function GET() {
   try {
@@ -75,6 +100,41 @@ export async function POST(req: Request) {
     if (!dbUrl) throw new Error("Environment string missing");
 
     const sql = neon(dbUrl);
+
+    // --- EDGE DETECTION (ANTI-SPAM LOGIC) ---
+    // Fetch the absolute latest reading before we save this new one
+    const prevDataResult = await sql`
+      SELECT "waterTemp", "currentDay", "chamberHumid" FROM "Telemetry"
+      WHERE "incubatorId" = ${body.device_id || DEVICE_ID}
+      ORDER BY "createdAt" DESC
+      LIMIT 1
+    `;
+
+    // If we have previous data, compare it to the incoming data
+    if (prevDataResult.length > 0) {
+      const prevData = prevDataResult[0];
+
+      // A. THERMAL EMERGENCY (Only trigger if it WAS normal, and IS NOW critical)
+      if (prevData.waterTemp <= 39.0 && body.water_temp > 39.0) {
+        await sendFarmerSMS(
+          `🚨 URGENT: BioHatch temperature is critical at ${body.water_temp}°C! Check the incubator immediately.`,
+        );
+      }
+
+      // B. DAY 18 LOCKDOWN (Only trigger exactly when it shifts from Day 17 to Day 18)
+      if (prevData.currentDay === 17 && body.current_day === 18) {
+        await sendFarmerSMS(
+          `🐣 BioHatch: Day 18 Lockdown initiated. Target humidity increased to 68%. Prepare the brooder.`,
+        );
+      }
+
+      // C. LOW WATER ALERT (Only trigger if humidity falls below 45%)
+      if (prevData.chamberHumid >= 45.0 && body.chamber_humid < 45.0) {
+        await sendFarmerSMS(
+          `⚠️ Warning: BioHatch humidity dropped to ${body.chamber_humid}%. Please check and refill the water reservoir.`,
+        );
+      }
+    }
 
     const newId = crypto.randomUUID();
 
