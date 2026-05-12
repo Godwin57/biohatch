@@ -11,6 +11,43 @@ const BIOHATCH_CONFIG = {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+// --- LOGIC: Dynamic Humidity Evaluation ---
+const getHumidStatus = (day: number, humid: number) => {
+  const target = day >= 18 ? 68 : 52;
+
+  if (humid < target - 2) {
+    return {
+      target,
+      state: "Below Target",
+      icon: "arrow_downward",
+      colorClass: "text-[#be123c]", // Red for critical low
+      bgClass: "bg-red-50 border-red-200",
+      accentBg: "bg-[#be123c]",
+      statusColor: "text-[#be123c]",
+    };
+  }
+  if (humid > target + 2) {
+    return {
+      target,
+      state: "Above Target",
+      icon: "arrow_upward",
+      colorClass: "text-[#f59e0b]", // Orange for warning high
+      bgClass: "bg-orange-50 border-orange-200",
+      accentBg: "bg-[#f59e0b]",
+      statusColor: "text-[#f59e0b]",
+    };
+  }
+  return {
+    target,
+    state: "Optimal Range",
+    icon: "check_circle",
+    colorClass: "text-[#0ea5e9]", // Standard Blue for optimal
+    bgClass: "bg-white border-[#dcfce7]",
+    accentBg: "bg-[#0ea5e9]",
+    statusColor: "text-[#064e3b]", // Standard Green for bottom status
+  };
+};
+
 export default function LiveMonitor() {
   const { data, error, isLoading } = useSWR("/api/telemetry", fetcher, {
     refreshInterval: BIOHATCH_CONFIG.REFRESH_INTERVAL,
@@ -31,6 +68,9 @@ export default function LiveMonitor() {
   const isTempCritical =
     waterTemp < BIOHATCH_CONFIG.TARGET_TEMP_MIN ||
     waterTemp > BIOHATCH_CONFIG.TARGET_TEMP_MAX;
+
+  // Evaluate humidity based on the current day
+  const humidData = getHumidStatus(currentDay, chamberHumid);
 
   return (
     <div className="font-['Plus_Jakarta_Sans'] text-[#191c1b] antialiased min-h-screen pb-24 md:pb-0 bg-[#f0fdf4]">
@@ -201,29 +241,41 @@ export default function LiveMonitor() {
             </div>
           </div>
 
-          {/* Humidity Card */}
-          <div className="bg-white rounded-[16px] shadow-sm border border-[#dcfce7] p-[24px] flex flex-col gap-[16px] relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#0ea5e9] opacity-5 rounded-bl-full transition-opacity group-hover:opacity-10"></div>
+          {/* Humidity Card (Now Context-Aware) */}
+          <div
+            className={`${humidData.bgClass} rounded-[16px] shadow-sm border p-[24px] flex flex-col gap-[16px] relative overflow-hidden group transition-colors duration-300`}
+          >
+            <div
+              className={`absolute top-0 right-0 w-32 h-32 ${humidData.accentBg} opacity-5 rounded-bl-full transition-opacity group-hover:opacity-10`}
+            ></div>
             <div className="flex justify-between items-start z-10">
-              <p className="text-[12px] font-bold tracking-[0.06em] leading-[1.2] text-[#404944] uppercase">
-                Ambient Humidity
+              <p
+                className={`text-[12px] font-bold tracking-[0.06em] leading-[1.2] uppercase ${humidData.colorClass !== "text-[#0ea5e9]" ? humidData.colorClass : "text-[#404944]"}`}
+              >
+                Humidity (TGT: {humidData.target}%)
               </p>
-              <span className="material-symbols-outlined text-[#0ea5e9]">
+              <span
+                className={`material-symbols-outlined ${humidData.colorClass}`}
+              >
                 water_drop
               </span>
             </div>
             <div className="mt-auto z-10">
-              <div className="text-[48px] font-bold leading-[1.2] tracking-[0.02em] text-[#0ea5e9]">
+              <div
+                className={`text-[48px] font-bold leading-[1.2] tracking-[0.02em] ${humidData.colorClass}`}
+              >
                 {chamberHumid.toFixed(0)}
                 <span className="text-[24px] text-[#707974] ml-2 leading-[1.3]">
                   %
                 </span>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-[#064e3b] text-[16px] font-medium leading-[1.5] tracking-[0.01em]">
+              <div
+                className={`flex items-center gap-1 mt-2 text-[16px] font-medium leading-[1.5] tracking-[0.01em] ${humidData.statusColor}`}
+              >
                 <span className="material-symbols-outlined text-[16px]">
-                  check_circle
+                  {humidData.icon}
                 </span>
-                <span>Optimal Range</span>
+                <span>{humidData.state}</span>
               </div>
             </div>
           </div>
@@ -269,7 +321,7 @@ export default function LiveMonitor() {
           <div className="flex flex-col">
             <div className="flex justify-between items-center py-2 border-b border-[#dcfce7] last:border-0">
               <div className="flex items-center gap-4">
-                <div className="w-2 h-2 rounded-full bg-[#064e3b]"></div>
+                <div className="w-2 h-2 rounded-full bg-[#064e3b] animate-pulse"></div>
                 <span className="text-[16px] font-medium leading-[1.5] tracking-[0.01em] text-[#191c1b]">
                   Status: {status}
                 </span>
