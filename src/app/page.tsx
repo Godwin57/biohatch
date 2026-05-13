@@ -281,7 +281,7 @@ export default function LiveMonitor() {
           </div>
 
           {/* Gas Level Card */}
-          <div className="bg-white rounded-[16px] shadow-sm border border-[#dcfce7] p-[24px] flex flex-col gap-[16px] relative overflow-hidden group">
+          {/* <div className="bg-white rounded-[16px] shadow-sm border border-[#dcfce7] p-[24px] flex flex-col gap-[16px] relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#f59e0b] opacity-5 rounded-bl-full transition-opacity group-hover:opacity-10"></div>
             <div className="flex justify-between items-start z-10">
               <p className="text-[12px] font-bold tracking-[0.06em] leading-[1.2] text-[#404944] uppercase">
@@ -305,7 +305,7 @@ export default function LiveMonitor() {
                 <span>Normal Levels</span>
               </div>
             </div>
-          </div>
+          </div> */}
         </section>
 
         {/* Bottom Section: System Heartbeat List */}
@@ -315,21 +315,8 @@ export default function LiveMonitor() {
               monitor_heart
             </span>
             <h3 className="text-[24px] font-bold leading-[1.3] tracking-[0.01em] text-[#003527]">
-              System Heartbeat
+              Team Eco-Agr Innovators, 2026 IAS IPCSD Student Contest
             </h3>
-          </div>
-          <div className="flex flex-col">
-            <div className="flex justify-between items-center py-2 border-b border-[#dcfce7] last:border-0">
-              <div className="flex items-center gap-4">
-                <div className="w-2 h-2 rounded-full bg-[#064e3b] animate-pulse"></div>
-                <span className="text-[16px] font-medium leading-[1.5] tracking-[0.01em] text-[#191c1b]">
-                  Status: {status}
-                </span>
-              </div>
-              <span className="text-[12px] font-bold tracking-[0.06em] leading-[1.2] text-[#404944]">
-                CURRENT
-              </span>
-            </div>
           </div>
         </section>
 
