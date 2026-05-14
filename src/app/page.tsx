@@ -61,13 +61,19 @@ export default function LiveMonitor() {
     );
   }
 
-  const { currentDay, waterTemp, chamberHumid, gasFlowPct, status } = data;
+  // Extracted batteryV to calculate gas leak state
+  const { currentDay, waterTemp, chamberHumid, gasFlowPct, batteryV, status } =
+    data;
 
   const progressPercentage = Math.min((currentDay / 21) * 100, 100);
   const isLockdown = currentDay >= 18;
   const isTempCritical =
     waterTemp < BIOHATCH_CONFIG.TARGET_TEMP_MIN ||
     waterTemp > BIOHATCH_CONFIG.TARGET_TEMP_MAX;
+
+  // Derive hardware states from the hijacked database columns
+  const isHeating = gasFlowPct >= 100.0;
+  const isGasLeaking = batteryV >= 100.0;
 
   // Evaluate humidity based on the current day
   const humidData = getHumidStatus(currentDay, chamberHumid);
@@ -109,8 +115,31 @@ export default function LiveMonitor() {
       <main className="max-w-[1440px] mx-auto px-4 md:px-[32px] py-6 md:py-[40px] flex flex-col gap-8 md:gap-[64px]">
         {/* Top Section: Alert & Status */}
         <section className="flex flex-col gap-4 md:gap-[24px]">
-          {/* Critical Alert Banner */}
-          {isLockdown ? (
+          {/* Gas Leak Emergency Banner */}
+          {isGasLeaking && (
+            <div className="bg-[#be123c] text-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-2 border-[#9f1239] animate-pulse">
+              <div className="flex items-center gap-4">
+                <span
+                  className="material-symbols-outlined text-[32px]"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  warning
+                </span>
+                <div>
+                  <h2 className="text-[20px] md:text-[24px] font-bold leading-[1.3] tracking-[0.01em]">
+                    CRITICAL SAFETY HAZARD
+                  </h2>
+                  <p className="text-[14px] md:text-[16px] font-medium leading-[1.5] tracking-[0.01em] text-white/90">
+                    Gas valve is open but no flame is detected. Ventilate area
+                    immediately.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Critical Alert Banner for Lockdown */}
+          {isLockdown && !isGasLeaking ? (
             <div className="bg-[#be123c] text-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-2 border-[#9f1239]">
               <div className="flex items-center gap-4">
                 <span
@@ -135,29 +164,31 @@ export default function LiveMonitor() {
               </div>
             </div>
           ) : (
-            <div className="bg-white text-[#064e3b] p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#dcfce7]">
-              <div className="flex items-center gap-4">
-                <span
-                  className="material-symbols-outlined text-[32px] text-[#0ea5e9]"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  info
-                </span>
-                <div>
-                  <h2 className="text-[20px] md:text-[24px] font-bold leading-[1.3] tracking-[0.01em]">
-                    Incubating
-                  </h2>
-                  <p className="text-[14px] md:text-[16px] font-medium leading-[1.5] tracking-[0.01em] text-black/60">
-                    Nominal Operation
-                  </p>
+            !isGasLeaking && (
+              <div className="bg-white text-[#064e3b] p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#dcfce7]">
+                <div className="flex items-center gap-4">
+                  <span
+                    className="material-symbols-outlined text-[32px] text-[#0ea5e9]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    info
+                  </span>
+                  <div>
+                    <h2 className="text-[20px] md:text-[24px] font-bold leading-[1.3] tracking-[0.01em]">
+                      Incubating
+                    </h2>
+                    <p className="text-[14px] md:text-[16px] font-medium leading-[1.5] tracking-[0.01em] text-black/60">
+                      Nominal Operation
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <button className="w-full sm:w-auto bg-emerald-50 hover:bg-emerald-100 text-[#064e3b] px-4 py-2 rounded text-[16px] font-bold leading-[1] tracking-[0.02em] transition-colors">
+                    View Details
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-4">
-                <button className="w-full sm:w-auto bg-emerald-50 hover:bg-emerald-100 text-[#064e3b] px-4 py-2 rounded text-[16px] font-bold leading-[1] tracking-[0.02em] transition-colors">
-                  View Details
-                </button>
-              </div>
-            </div>
+            )
           )}
 
           {/* Unit Status Header */}
@@ -241,7 +272,7 @@ export default function LiveMonitor() {
             </div>
           </div>
 
-          {/* Humidity Card (Now Context-Aware) */}
+          {/* Humidity Card (Context-Aware) */}
           <div
             className={`${humidData.bgClass} rounded-[16px] shadow-sm border p-[24px] flex flex-col gap-[16px] relative overflow-hidden group transition-colors duration-300`}
           >
@@ -280,32 +311,47 @@ export default function LiveMonitor() {
             </div>
           </div>
 
-          {/* Gas Level Card */}
-          {/* <div className="bg-white rounded-[16px] shadow-sm border border-[#dcfce7] p-[24px] flex flex-col gap-[16px] relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#f59e0b] opacity-5 rounded-bl-full transition-opacity group-hover:opacity-10"></div>
+          {/* Biogas Flame Status Card */}
+          <div
+            className={`${isGasLeaking ? "bg-red-50 border-red-200" : isHeating ? "bg-orange-50 border-orange-200" : "bg-slate-50 border-slate-200"} rounded-[16px] shadow-sm border p-[24px] flex flex-col gap-[16px] relative overflow-hidden group transition-colors duration-300`}
+          >
+            <div
+              className={`absolute top-0 right-0 w-32 h-32 opacity-5 rounded-bl-full transition-opacity group-hover:opacity-10 ${isGasLeaking ? "bg-[#be123c]" : isHeating ? "bg-[#ea580c]" : "bg-[#64748b]"}`}
+            ></div>
             <div className="flex justify-between items-start z-10">
-              <p className="text-[12px] font-bold tracking-[0.06em] leading-[1.2] text-[#404944] uppercase">
-                Gas Level (CO2)
+              <p
+                className={`text-[12px] font-bold tracking-[0.06em] leading-[1.2] uppercase ${isGasLeaking ? "text-[#be123c]" : "text-[#404944]"}`}
+              >
+                Biogas Burner
               </p>
-              <span className="material-symbols-outlined text-[#f59e0b]">
-                co2
+              <span
+                className={`material-symbols-outlined ${isGasLeaking ? "text-[#be123c]" : isHeating ? "text-[#ea580c]" : "text-[#94a3b8]"}`}
+              >
+                local_fire_department
               </span>
             </div>
             <div className="mt-auto z-10">
-              <div className="text-[48px] font-bold leading-[1.2] tracking-[0.02em] text-[#f59e0b]">
-                {gasFlowPct}
-                <span className="text-[24px] text-[#707974] ml-2 leading-[1.3]">
-                  ppm
-                </span>
+              <div
+                className={`text-[32px] md:text-[40px] font-bold leading-[1.2] tracking-[0.02em] ${isGasLeaking ? "text-[#be123c]" : isHeating ? "text-[#ea580c]" : "text-[#475569]"}`}
+              >
+                {isGasLeaking ? "LEAK" : isHeating ? "BURNING" : "STANDBY"}
               </div>
-              <div className="flex items-center gap-1 mt-2 text-[#064e3b] text-[16px] font-medium leading-[1.5] tracking-[0.01em]">
+              <div
+                className={`flex items-center gap-1 mt-2 text-[16px] font-medium leading-[1.5] tracking-[0.01em] ${isGasLeaking ? "text-[#be123c]" : "text-[#064e3b]"}`}
+              >
                 <span className="material-symbols-outlined text-[16px]">
-                  check_circle
+                  {isGasLeaking ? "warning" : "check_circle"}
                 </span>
-                <span>Normal Levels</span>
+                <span>
+                  {isGasLeaking
+                    ? "Valve Open, No Flame"
+                    : isHeating
+                      ? "Heating Active"
+                      : "Safe"}
+                </span>
               </div>
             </div>
-          </div> */}
+          </div>
         </section>
 
         {/* Bottom Section: System Heartbeat List */}
@@ -320,8 +366,8 @@ export default function LiveMonitor() {
           </div>
         </section>
 
-        {/* Lockdown Emergency Banner */}
-        {isLockdown && (
+        {/* Lockdown Emergency Banner (Only show if not already showing leak banner) */}
+        {isLockdown && !isGasLeaking && (
           <section className="w-full">
             <div className="bg-[#be123c] text-white font-bold text-center py-4 rounded-lg shadow-md animate-pulse">
               <span className="text-xl md:text-2xl tracking-widest uppercase">
