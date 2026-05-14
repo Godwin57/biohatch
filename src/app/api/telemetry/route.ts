@@ -102,9 +102,9 @@ export async function POST(req: Request) {
     const sql = neon(dbUrl);
 
     // --- EDGE DETECTION (ANTI-SPAM LOGIC) ---
-    // Fetch the absolute latest reading before we save this new one
+    // Fetch the absolute latest reading before we save this new one. Added batteryV to query.
     const prevDataResult = await sql`
-      SELECT "waterTemp", "currentDay", "chamberHumid" FROM "Telemetry"
+      SELECT "waterTemp", "currentDay", "chamberHumid", "batteryV" FROM "Telemetry"
       WHERE "incubatorId" = ${body.device_id || DEVICE_ID}
       ORDER BY "createdAt" DESC
       LIMIT 1
@@ -132,6 +132,13 @@ export async function POST(req: Request) {
       if (prevData.chamberHumid >= 45.0 && body.chamber_humid < 45.0) {
         await sendFarmerSMS(
           `⚠️ Warning: BioHatch humidity dropped to ${body.chamber_humid}%. Please check and refill the water reservoir.`,
+        );
+      }
+
+      // D. GAS LEAK EMERGENCY (Trigger if batteryV mocked value hits 100.0)
+      if (prevData.batteryV < 100.0 && body.battery_v >= 100.0) {
+        await sendFarmerSMS(
+          `🚨 CRITICAL SAFETY ALERT: BioHatch gas valve is open but NO FLAME detected. Gas is leaking! Check system immediately.`,
         );
       }
     }
